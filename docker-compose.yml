@@ -1,0 +1,237 @@
+services:
+  # Auth Service
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@auth-postgres:5432/auth_db?sslmode=disable
+      - USER_SERVICE_URL=http://user-service:8081
+      - JWT_SECRET=your_super_secret_key_here
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      market_net:
+        aliases:
+          - auth-service
+
+  auth-postgres:
+    image: postgres:15-alpine
+    container_name: auth-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=auth_db
+    volumes:
+      - auth-pgdata:/var/lib/postgresql/data
+      - ./auth-service/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d auth_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - market_net
+
+  # User Service
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@user-postgres:5432/user_db?sslmode=disable
+      - JWT_SECRET=your_super_secret_key_here
+    depends_on:
+      user-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      market_net:
+        aliases:
+          - user-service
+
+  user-postgres:
+    image: postgres:15-alpine
+    container_name: user-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=user_db
+    volumes:
+      - user-pgdata:/var/lib/postgresql/data
+      - ./user-service/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d user_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - market_net
+
+  # Product Service
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@product-postgres:5432/product_db?sslmode=disable
+      - JWT_SECRET=your_super_secret_key_here
+    depends_on:
+      product-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      market_net:
+        aliases:
+          - product-service
+
+  product-postgres:
+    image: postgres:15-alpine
+    container_name: product-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=product_db
+    volumes:
+      - product-pgdata:/var/lib/postgresql/data
+      - ./product-service/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d product_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - market_net
+
+  # Order Service
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@order-postgres:5432/order_db?sslmode=disable
+      - PRODUCT_SERVICE_URL=http://product-service:8082
+      - JWT_SECRET=your_super_secret_key_here
+    depends_on:
+      order-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      market_net:
+        aliases:
+          - order-service
+
+  order-postgres:
+    image: postgres:15-alpine
+    container_name: order-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=order_db
+    volumes:
+      - order-pgdata:/var/lib/postgresql/data
+      - ./order-service/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d order_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - market_net
+
+  # Frontend
+  frontend:
+    build:
+      context: ./charm-store-now
+      dockerfile: Dockerfile
+    container_name: frontend
+    networks:
+      market_net:
+        aliases:
+          - frontend
+
+  # API Gateway
+  api-gateway:
+    image: nginx:alpine
+    container_name: api-gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ./api-gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - user-service
+      - product-service
+      - order-service
+      - frontend
+    networks:
+      - market_net
+
+  # Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - market_net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - market_net
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)'
+    networks:
+      - market_net
+
+networks:
+  market_net:
+    driver: bridge
+
+volumes:
+  auth-pgdata:
+  user-pgdata:
+  product-pgdata:
+  order-pgdata:

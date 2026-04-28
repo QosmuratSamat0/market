@@ -1,0 +1,15 @@
+services:
+  nginx-gateway:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - marketplace
+    restart: unless-stopped
+
+networks:
+  marketplace:
+    name: marketplace
+    external: true

@@ -1,0 +1,19 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# env
+.env
+.env.*
+
+# logs
+*.log
+
+# binaries
+bin/
+dist/
+
+# OS
+.DS_Store
