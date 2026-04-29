@@ -1,14 +1,19 @@
-output "container_name" {
-  description = "Name of the provisioned container"
-  value       = docker_container.app_server.name
+output "instance_name" {
+  description = "Name of the instance"
+  value       = oci_core_instance.free_server.display_name
 }
 
-output "container_id" {
-  description = "ID of the provisioned container"
-  value       = docker_container.app_server.id
+output "instance_id" {
+  description = "OCID of the instance"
+  value       = oci_core_instance.free_server.id
 }
 
-output "exposed_ports" {
-  description = "Ports exposed by the container"
-  value       = "80, 3000, 9090, 2222 (SSH)"
+output "public_ip" {
+  description = "Public IP address of the instance"
+  value       = oci_core_instance.free_server.public_ip
+}
+
+output "ssh_command" {
+  description = "Command to connect to the instance"
+  value       = "ssh -i /home/admin/Downloads/ssh-key-2026-04-19.key ubuntu@${oci_core_instance.free_server.public_ip}"
 }

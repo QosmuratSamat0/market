@@ -1,14 +1,13 @@
-variable "aws_region" {
-  description = "AWS region to deploy in"
-  default     = "us-east-1"
-}
+variable "tenancy_ocid" { type = string }
+variable "user_ocid" { type = string }
+variable "fingerprint" { type = string }
+variable "private_key_path" { type = string }
+variable "region" { type = string }
+variable "compartment_id" { type = string }
+variable "ssh_public_key" { type = string }
 
-variable "instance_type" {
-  description = "Type of EC2 instance"
-  default     = "t3.medium"
-}
-
-variable "project_name" {
-  description = "Name of the project"
-  default     = "market-place"
+variable "public_subnet_cidr" {
+  description = "CIDR block for the Terraform-managed public subnet"
+  type        = string
+  default     = "10.0.10.0/24"
 }
