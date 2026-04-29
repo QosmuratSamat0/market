@@ -3,6 +3,7 @@
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl
+./infra/terraform.tfvars
 
 # env
 .env
