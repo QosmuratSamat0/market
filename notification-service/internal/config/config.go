@@ -10,7 +10,7 @@ import (
 
 type Config struct {
 	Env     string `yaml:"env" env-default:"local" env:"ENV"`
-	NatsURL  string `yaml:"nats_url" env:"NATS_URL" env-default:"nats://localhost:4222"`
+	RabbitmqURL string `yaml:"rabbitmq_url" env:"RABBITMQ_URL" env-default:"amqp://guest:guest@rabbitmq:5672/"`
 	HttpPort string `yaml:"http_port" env:"HTTP_PORT" env-default:"8085"`
 }
 

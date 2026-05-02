@@ -130,7 +130,7 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@order-postgres:5432/order_db?sslmode=disable
       - PRODUCT_SERVICE_URL=http://product-service:8082
       - JWT_SECRET=your_super_secret_key_here
-      - NATS_URL=nats://nats:4222
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     depends_on:
       order-postgres:
         condition: service_healthy
@@ -196,7 +196,7 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     ports:
-      - "9091:9090"
+      - "9095:9090"
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     networks:
@@ -243,16 +243,6 @@ services:
     networks:
       - market_net
 
-  # NATS
-  nats:
-    image: nats:latest
-    container_name: nats
-    ports:
-      - "4222:4222"
-      - "8222:8222"
-    networks:
-      - market_net
-
   # Payment Service
   payment-service:
     build:
@@ -270,8 +260,6 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      nats:
-        condition: service_started
     networks:
       - market_net
 
@@ -300,12 +288,12 @@ services:
       dockerfile: Dockerfile
     container_name: notification-service
     environment:
-      - NATS_URL=nats://nats:4222
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - HTTP_PORT=8085
     ports:
       - "8085:8085"
     depends_on:
-      - nats
+      - rabbitmq
     networks:
       - market_net
 

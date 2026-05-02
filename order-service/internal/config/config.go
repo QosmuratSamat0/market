@@ -16,7 +16,7 @@ type Config struct {
 	HTTPServer           HTTPServer `yaml:"http_server"`
 	JWTSecret            string     `yaml:"jwt_secret" env:"JWT_SECRET"`
 	ProductServiceURL    string     `yaml:"product_service_url" env:"PRODUCT_SERVICE_URL" env-default:"http://product-service:8082"`
-	NatsURL              string     `yaml:"nats_url" env:"NATS_URL" env-default:"nats://nats:4222"`
+	RabbitmqURL          string     `yaml:"rabbitmq_url" env:"RABBITMQ_URL" env-default:"amqp://guest:guest@rabbitmq:5672/"`
 	AppURL               string     `env:"APP_URL"`
 	AllowLocalhostOrigin string     `yaml:"ALLOW_LOCALHOST_ORIGIN" env:"ALLOW_LOCALHOST_ORIGIN"`
 

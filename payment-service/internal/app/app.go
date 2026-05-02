@@ -11,8 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/QosmuratSamat0/payment-service/internal/broker"
-	"github.com/QosmuratSamat0/payment-service/internal/broker/nats"
 	"github.com/QosmuratSamat0/payment-service/internal/broker/rabbitmq"
 	"github.com/QosmuratSamat0/payment-service/internal/client/order"
 	"github.com/QosmuratSamat0/payment-service/internal/client/user"
@@ -54,31 +52,16 @@ func New(cfg *config.Config) (*App, error) {
 		"mock": provider.NewMockProvider(),
 	}
 
-	// Инициализируем брокеры
+	// Инициализируем брокер
 	rmqBroker, err := rabbitmq.NewBroker(cfg.RabbitmqURL)
 	if err != nil {
-		log.Warn("failed to connect to rabbitmq, continuing without it", slog.String("error", err.Error()))
+		log.Error("failed to connect to rabbitmq", slog.String("error", err.Error()))
+		return nil, fmt.Errorf("failed to connect to rabbitmq: %w", err)
 	}
 
-	natsBroker, err := nats.NewBroker(cfg.NatsURL)
-	if err != nil {
-		log.Warn("failed to connect to nats, continuing without it", slog.String("error", err.Error()))
-	}
-
-	// Собираем все брокеры в один
-	var brokers []broker.MessageBroker
+	paymentService := service.NewPaymentService(repo, rmqBroker, providers, orderClient, userClient)
 	var closers []interface{ Close() }
-	if rmqBroker != nil {
-		brokers = append(brokers, rmqBroker)
-		closers = append(closers, rmqBroker)
-	}
-	if natsBroker != nil {
-		brokers = append(brokers, natsBroker)
-		closers = append(closers, natsBroker)
-	}
-	multiBroker := broker.NewMultiBroker(brokers...)
-
-	paymentService := service.NewPaymentService(repo, multiBroker, providers, orderClient, userClient)
+	closers = append(closers, rmqBroker)
 	r := chi.NewRouter()
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

@@ -5,6 +5,7 @@ go 1.25.9
 require (
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/nats-io/nats.go v1.51.0
+	github.com/rabbitmq/amqp091-go v1.11.0
 )
 
 require (

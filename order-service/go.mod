@@ -9,6 +9,7 @@ require (
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/prometheus/client_golang v1.23.2
+	github.com/rabbitmq/amqp091-go v1.11.0
 )
 
 require (

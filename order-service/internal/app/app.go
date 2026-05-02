@@ -13,8 +13,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	amqp "github.com/rabbitmq/amqp091-go"
 
 	productClient "github.com/QosmuratSamat/order-service/internal/client/product"
 	"github.com/QosmuratSamat/order-service/internal/config"
@@ -30,7 +30,8 @@ type App struct {
 	cfg    *config.Config
 	router *chi.Mux
 	dbPool *pgxpool.Pool
-	nc     *nats.Conn
+	rmq    *amqp.Connection
+	ch     *amqp.Channel
 }
 
 func New(cfg *config.Config) (*App, error) {
@@ -61,44 +62,99 @@ func New(cfg *config.Config) (*App, error) {
 	orderModule := httpHandler.NewOrderModule(ordUC, cfg.JWTSecret)
 	orderModule.RegisterRoutes(r)
 
-	nc, err := nats.Connect(cfg.NatsURL)
+	// RabbitMQ initialization
+	conn, err := amqp.Dial(cfg.RabbitmqURL)
 	if err != nil {
-		return nil, fmt.Errorf("unable to connect to nats: %w", err)
+		return nil, fmt.Errorf("unable to connect to rabbitmq: %w", err)
 	}
 
-	// Subscribe to payment success events to update order status
-	_, err = nc.Subscribe("payment.success", func(m *nats.Msg) {
-		var data struct {
-			OrderID string `json:"order_id"`
-			Status  string `json:"status"`
-		}
-		if err := json.Unmarshal(m.Data, &data); err != nil {
-			log.Printf("failed to unmarshal payment success event: %v", err)
-			return
-		}
+	ch, err := conn.Channel()
+	if err != nil {
+		return nil, fmt.Errorf("unable to open rabbitmq channel: %w", err)
+	}
 
-		if data.Status == "success" {
-			log.Printf("Updating order %s status to paid", data.OrderID)
-			if err := ordRepo.UpdateOrderStatus(ctx, data.OrderID, domain.StatusPaid); err != nil {
-				log.Printf("failed to update order status for order %s: %v", data.OrderID, err)
+	err = ch.ExchangeDeclare(
+		"payment_events", // name
+		"topic",          // type
+		true,             // durable
+		false,            // auto-deleted
+		false,            // internal
+		false,            // no-wait
+		nil,              // arguments
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to declare exchange: %w", err)
+	}
+
+	q, err := ch.QueueDeclare(
+		"order_service_payment_queue", // name
+		false,                         // durable
+		false,                         // delete when unused
+		true,                          // exclusive
+		false,                         // no-wait
+		nil,                           // arguments
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to declare queue: %w", err)
+	}
+
+	err = ch.QueueBind(
+		q.Name,            // queue name
+		"payment.success", // routing key
+		"payment_events",  // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to bind queue: %w", err)
+	}
+
+	msgs, err := ch.Consume(
+		q.Name, // queue
+		"",     // consumer
+		true,   // auto-ack
+		false,  // exclusive
+		false,  // no-local
+		false,  // no-wait
+		nil,    // args
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to register consumer: %w", err)
+	}
+
+	go func() {
+		for d := range msgs {
+			var data struct {
+				OrderID string `json:"order_id"`
+				Status  string `json:"status"`
+			}
+			if err := json.Unmarshal(d.Body, &data); err != nil {
+				log.Printf("failed to unmarshal payment success event: %v", err)
+				continue
+			}
+
+			if data.Status == "success" {
+				log.Printf("Updating order %s status to paid", data.OrderID)
+				if err := ordRepo.UpdateOrderStatus(ctx, data.OrderID, domain.StatusPaid); err != nil {
+					log.Printf("failed to update order status for order %s: %v", data.OrderID, err)
+				}
 			}
 		}
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to payment success: %w", err)
-	}
+	}()
 
 	return &App{
 		cfg:    cfg,
 		router: r,
 		dbPool: dbPool,
-		nc:     nc,
+		rmq:    conn,
+		ch:     ch,
 	}, nil
 }
 
 func (a *App) Run() {
 	defer a.dbPool.Close()
-	defer a.nc.Close()
+	defer a.ch.Close()
+	defer a.rmq.Close()
 
 	srv := &http.Server{
 		Addr:         a.cfg.HTTPServer.Address,
