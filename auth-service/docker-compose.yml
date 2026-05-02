@@ -1,0 +1,49 @@
+services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "8080:8080"
+    environment:
+      - ENV=local
+      - DATABASE_URL=postgres://postgres:postgres@auth-postgres:5432/auth_db?sslmode=disable
+      - HTTP_SERVER_ADDRESS=:8080
+      - JWT_SECRET=your_super_secret_key_here
+      - USER_SERVICE_URL=http://user-service:8081
+      - APP_URL=http://localhost:3000
+      - ALLOW_LOCALHOST_ORIGIN=http://localhost:3000,http://localhost:3001
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+    networks:
+      - marketplace
+
+  auth-postgres:
+    image: postgres:15-alpine
+    container_name: auth-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=auth_db
+    volumes:
+      - auth-pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - marketplace
+
+volumes:
+  auth-pgdata:
+
+networks:
+  marketplace:
+    name: marketplace
+    external: true

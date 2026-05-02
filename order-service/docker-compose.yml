@@ -1,0 +1,49 @@
+services:
+  order-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: order-service
+    ports:
+      - "${ORDER_SERVICE_PORT:-8083}:8083"
+    environment:
+      - ENV=${ENV:-local}
+      - DATABASE_URL=${DATABASE_URL:-postgres://postgres:postgres@order-postgres:5432/order_db?sslmode=disable}
+      - HTTP_SERVER_ADDRESS=${HTTP_SERVER_ADDRESS:-:8083}
+      - JWT_SECRET=${JWT_SECRET:-your_super_secret_key_here}
+      - PRODUCT_SERVICE_URL=${PRODUCT_SERVICE_URL:-http://product-service:8082}
+      - APP_URL=${APP_URL:-http://localhost:3000}
+      - ALLOW_LOCALHOST_ORIGIN=${ALLOW_LOCALHOST_ORIGIN:-http://localhost:3000,http://localhost:3001}
+    depends_on:
+      order-postgres:
+        condition: service_healthy
+    networks:
+      - marketplace
+
+  order-postgres:
+    image: postgres:15-alpine
+    container_name: order-postgres
+    ports:
+      - "${ORDER_POSTGRES_PORT:-5435}:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-order_db}
+    volumes:
+      - order-pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-order_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - marketplace
+
+volumes:
+  order-pgdata:
+
+networks:
+  marketplace:
+    name: marketplace
+    external: true

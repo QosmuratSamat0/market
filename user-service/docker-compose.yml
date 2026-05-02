@@ -1,0 +1,48 @@
+services:
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: user-service
+    ports:
+      - "8081:8081"
+    environment:
+      - ENV=local
+      - DATABASE_URL=postgres://postgres:postgres@user-postgres:5432/user_db?sslmode=disable
+      - HTTP_SERVER_ADDRESS=:8081
+      - JWT_SECRET=your_super_secret_key_here
+      - APP_URL=http://localhost:3000
+      - ALLOW_LOCALHOST_ORIGIN=http://localhost:3000,http://localhost:3001
+    depends_on:
+      user-postgres:
+        condition: service_healthy
+    networks:
+      - marketplace
+
+  user-postgres:
+    image: postgres:15-alpine
+    container_name: user-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=user_db
+    volumes:
+      - user-pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d user_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - marketplace
+
+volumes:
+  user-pgdata:
+
+networks:
+  marketplace:
+    name: marketplace
+    external: true

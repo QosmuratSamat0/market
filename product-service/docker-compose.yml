@@ -1,0 +1,48 @@
+services:
+  product-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: product-service
+    ports:
+      - "8082:8082"
+    environment:
+      - ENV=local
+      - DATABASE_URL=postgres://postgres:postgres@product-postgres:5432/product_db?sslmode=disable
+      - HTTP_SERVER_ADDRESS=:8082
+      - JWT_SECRET=your_super_secret_key_here
+      - APP_URL=http://localhost:3000
+      - ALLOW_LOCALHOST_ORIGIN=http://localhost:3000,http://localhost:3001
+    depends_on:
+      product-postgres:
+        condition: service_healthy
+    networks:
+      - marketplace
+
+  product-postgres:
+    image: postgres:15-alpine
+    container_name: product-postgres
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=product_db
+    volumes:
+      - product-pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d product_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - marketplace
+
+volumes:
+  product-pgdata:
+
+networks:
+  marketplace:
+    name: marketplace
+    external: true
