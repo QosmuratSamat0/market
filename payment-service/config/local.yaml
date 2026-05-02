@@ -1,0 +1,9 @@
+env: "local"
+database_url: "postgres://postgres:postgres@localhost:5432/payments?sslmode=disable"
+http_server:
+  address: ":8084"
+  timeout: 10s
+  idle_timeout: 60s
+order_service_url: "http://localhost:8083"
+user_service_url: "http://localhost:8081"
+nats_url: "nats://localhost:4222"

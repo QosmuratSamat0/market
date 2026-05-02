@@ -13,7 +13,7 @@ services:
       auth-postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/metrics"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/metrics" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,7 +53,7 @@ services:
       user-postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/metrics"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/metrics" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -93,7 +93,7 @@ services:
       product-postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/metrics"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8082/metrics" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -130,11 +130,12 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@order-postgres:5432/order_db?sslmode=disable
       - PRODUCT_SERVICE_URL=http://product-service:8082
       - JWT_SECRET=your_super_secret_key_here
+      - NATS_URL=nats://nats:4222
     depends_on:
       order-postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/metrics"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8083/metrics" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -185,6 +186,7 @@ services:
       - user-service
       - product-service
       - order-service
+      - payment-service
       - frontend
     networks:
       - market_net
@@ -226,6 +228,87 @@ services:
     networks:
       - market_net
 
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q check_running
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - market_net
+
+  # NATS
+  nats:
+    image: nats:latest
+    container_name: nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    networks:
+      - market_net
+
+  # Payment Service
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    env_file:
+      - ./payment-service/.env
+    depends_on:
+      user-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      payment-postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    networks:
+      - market_net
+
+  payment-postgres:
+    image: postgres:15-alpine
+    container_name: payment-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=payment_db
+    volumes:
+      - payment-pgdata:/var/lib/postgresql/data
+      - ./payment-service/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d payment_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - market_net
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    environment:
+      - NATS_URL=nats://nats:4222
+      - HTTP_PORT=8085
+    ports:
+      - "8085:8085"
+    depends_on:
+      - nats
+    networks:
+      - market_net
+
 networks:
   market_net:
     driver: bridge
@@ -235,3 +318,4 @@ volumes:
   user-pgdata:
   product-pgdata:
   order-pgdata:
+  payment-pgdata:

@@ -29,6 +29,8 @@ migrate:
 	@echo "Running Order Service migrations..."
 	sudo docker exec -i order-postgres psql -U postgres -d order_db < ./order-service/migrations/001_create_orders.sql
 	sudo docker exec -i order-postgres psql -U postgres -d order_db < ./order-service/migrations/002_seed_orders.sql
+	@echo "Running Payment Service migrations..."
+	sudo docker exec -i payment-postgres psql -U postgres -d payment_db < ./payment-service/migrations/001_create_payments.sql
 	@echo "All migrations applied successfully!"
 
 # Show logs for all services

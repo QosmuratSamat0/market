@@ -5,7 +5,7 @@ Follow these steps to deploy the Marketplace system to a production-like environ
 ## Prerequisites
 - Docker & Docker Compose
 - Terraform >= 1.0
-- AWS CLI (configured with credentials)
+- OCI credentials configured for Terraform
 - Make
 
 ## Step 1: Infrastructure Provisioning
@@ -22,7 +22,7 @@ Follow these steps to deploy the Marketplace system to a production-like environ
    ```bash
    terraform apply -auto-approve
    ```
-5. Note the `instance_public_ip` output.
+5. Note the `public_ip` output.
 
 ## Step 2: Service Configuration
 1. Update any environment-specific variables in `.env` files (if applicable).
