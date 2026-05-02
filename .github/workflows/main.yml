@@ -87,3 +87,4 @@ jobs:
             
             # Cleanup old unused images to save disk space
             sudo docker image prune -f
+          debug: true
