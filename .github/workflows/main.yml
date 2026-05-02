@@ -1,0 +1,89 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  REGISTRY: ghcr.io
+  # Replace with your lowercase repository path if needed
+  IMAGE_OWNER: qosmuratsamat0
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service: [auth-service, user-service, product-service, order-service, payment-service, notification-service, frontend]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.service }}:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/market
+            git pull origin main
+            
+            # Создаем общий .env файл для Docker Compose
+            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" > .env
+            echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+            echo "GRAFANA_PASSWORD=${{ secrets.GRAFANA_PASSWORD }}" >> .env
+            echo "HTTP_PORT=${{ secrets.HTTP_PORT }}" >> .env
+            echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+            echo "AUTH_DB_NAME=${{ secrets.AUTH_DB_NAME }}" >> .env
+            echo "USER_DB_NAME=${{ secrets.USER_DB_NAME }}" >> .env
+            echo "PRODUCT_DB_NAME=${{ secrets.PRODUCT_DB_NAME }}" >> .env
+            echo "ORDER_DB_NAME=${{ secrets.ORDER_DB_NAME }}" >> .env
+            echo "PAYMENT_DB_NAME=${{ secrets.PAYMENT_DB_NAME }}" >> .env
+            echo "RABBIT_USER=${{ secrets.RABBIT_USER }}" >> .env
+            echo "RABBIT_PASS=${{ secrets.RABBIT_PASS }}" >> .env
+            echo "AUTH_PORT=${{ secrets.AUTH_PORT }}" >> .env
+            echo "USER_PORT=${{ secrets.USER_PORT }}" >> .env
+            echo "PRODUCT_PORT=${{ secrets.PRODUCT_PORT }}" >> .env
+            echo "ORDER_PORT=${{ secrets.ORDER_PORT }}" >> .env
+            echo "PAYMENT_PORT=${{ secrets.PAYMENT_PORT }}" >> .env
+            echo "NOTIFICATION_PORT=${{ secrets.NOTIFICATION_PORT }}" >> .env
+            
+            # Создаем .env файл для payment-service
+            echo "${{ secrets.PAYMENT_SERVICE_ENV }}" > ./payment-service/.env
+            
+            # Логинимся в GHCR на сервере
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Скачиваем новые образы и перезапускаем
+            sudo docker compose pull
+            sudo docker compose up -d --remove-orphans
+            
+            # Cleanup old unused images to save disk space
+            sudo docker image prune -f

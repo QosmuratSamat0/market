@@ -89,7 +89,7 @@ resource "oci_core_network_security_group" "server_nsg" {
 
 # Правила для портов 80, 81, 443, 3000, 3001, 9090, 9091, 22
 resource "oci_core_network_security_group_security_rule" "ingress_rules" {
-  for_each = toset(["80", "81", "443", "3000", "3001", "9090", "9091", "22"])
+  for_each = toset(["80", "81", "443", "3000", "3001", "9090", "9091", "9095", "22"])
 
   network_security_group_id = oci_core_network_security_group.server_nsg.id
   direction                 = "INGRESS"
