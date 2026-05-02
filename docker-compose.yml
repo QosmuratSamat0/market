@@ -164,17 +164,6 @@ services:
     networks:
       - market_net
 
-  # Frontend
-  frontend:
-    image: ghcr.io/qosmuratsamat0/frontend:latest
-    container_name: frontend
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-    networks:
-      - market_net
-
   # API Gateway
   api-gateway:
     image: nginx:alpine
