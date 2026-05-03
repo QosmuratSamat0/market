@@ -85,6 +85,10 @@ jobs:
             
             cd ~/market-place
             
+            # Отключаем "прожорливый" агент Oracle, чтобы освободить CPU для Docker
+            sudo systemctl stop oracle-cloud-agent || true
+            sudo systemctl disable oracle-cloud-agent || true
+            
             # Создаем общий .env файл для Docker Compose
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" > .env
             echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
