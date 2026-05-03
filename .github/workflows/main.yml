@@ -69,12 +69,12 @@ jobs:
             set -e
             
             # Если папки нет, клонируем репозиторий
-            if [ ! -d "~/market-place" ]; then
-              cd ~
+            if [ ! -d "$HOME/market-place" ]; then
+              cd $HOME
               git clone https://github.com/QosmuratSamat0/market.git market-place
             fi
             
-            cd ~/market-place
+            cd $HOME/market-place
             git fetch origin main
             git reset --hard origin/main
             
