@@ -65,7 +65,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.yml,scripts/validate_config.sh,api-gateway/nginx.conf,*/migrations/,monitoring/prometheus/"
+          source: "docker-compose.yml,scripts/,api-gateway/nginx.conf,*/migrations/,monitoring/prometheus/"
           target: "~/market-place"
 
       - name: Deploy to Server via SSH

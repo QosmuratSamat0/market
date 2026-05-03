@@ -1,11 +1,45 @@
 services:
+  # Shared PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - AUTH_DB_NAME=${AUTH_DB_NAME}
+      - USER_DB_NAME=${USER_DB_NAME}
+      - PRODUCT_DB_NAME=${PRODUCT_DB_NAME}
+      - ORDER_DB_NAME=${ORDER_DB_NAME}
+      - PAYMENT_DB_NAME=${PAYMENT_DB_NAME}
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+      - ./auth-service/migrations:/migrations/auth:ro
+      - ./user-service/migrations:/migrations/user:ro
+      - ./product-service/migrations:/migrations/product:ro
+      - ./order-service/migrations:/migrations/order:ro
+      - ./payment-service/migrations:/migrations/payment:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - market_net
+
   # Auth Service
   auth-service:
     image: ghcr.io/qosmuratsamat0/auth-service:latest
     container_name: auth-service
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@auth-postgres:5432/${AUTH_DB_NAME}?sslmode=disable
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${AUTH_DB_NAME}?sslmode=disable
       - USER_SERVICE_URL=http://user-service:${USER_PORT:-8081}
       - JWT_SECRET=${JWT_SECRET}
       - HTTP_SERVER_ADDRESS=:8080
@@ -20,32 +54,8 @@ services:
         limits:
           memory: 256M
     depends_on:
-      auth-postgres:
+      postgres:
         condition: service_healthy
-    networks:
-      - market_net
-
-  auth-postgres:
-    image: postgres:15-alpine
-    container_name: auth-postgres
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${AUTH_DB_NAME}
-    deploy:
-      resources:
-        limits:
-          memory: 200M
-    volumes:
-      - auth-pgdata:/var/lib/postgresql/data
-      - ./auth-service/migrations:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${AUTH_DB_NAME}" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
     networks:
       - market_net
 
@@ -55,7 +65,7 @@ services:
     container_name: user-service
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@user-postgres:5432/${USER_DB_NAME}?sslmode=disable
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${USER_DB_NAME}?sslmode=disable
       - JWT_SECRET=${JWT_SECRET}
       - HTTP_SERVER_ADDRESS=:8081
     healthcheck:
@@ -69,32 +79,8 @@ services:
         limits:
           memory: 256M
     depends_on:
-      user-postgres:
+      postgres:
         condition: service_healthy
-    networks:
-      - market_net
-
-  user-postgres:
-    image: postgres:15-alpine
-    container_name: user-postgres
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${USER_DB_NAME}
-    deploy:
-      resources:
-        limits:
-          memory: 200M
-    volumes:
-      - user-pgdata:/var/lib/postgresql/data
-      - ./user-service/migrations:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${USER_DB_NAME}" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
     networks:
       - market_net
 
@@ -104,7 +90,7 @@ services:
     container_name: product-service
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@product-postgres:5432/${PRODUCT_DB_NAME}?sslmode=disable
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${PRODUCT_DB_NAME}?sslmode=disable
       - JWT_SECRET=${JWT_SECRET}
       - HTTP_SERVER_ADDRESS=:8082
     healthcheck:
@@ -118,32 +104,8 @@ services:
         limits:
           memory: 256M
     depends_on:
-      product-postgres:
+      postgres:
         condition: service_healthy
-    networks:
-      - market_net
-
-  product-postgres:
-    image: postgres:15-alpine
-    container_name: product-postgres
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${PRODUCT_DB_NAME}
-    deploy:
-      resources:
-        limits:
-          memory: 200M
-    volumes:
-      - product-pgdata:/var/lib/postgresql/data
-      - ./product-service/migrations:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${PRODUCT_DB_NAME}" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
     networks:
       - market_net
 
@@ -153,7 +115,7 @@ services:
     container_name: order-service
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@order-postgres:5432/${ORDER_DB_NAME}?sslmode=disable
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${ORDER_DB_NAME}?sslmode=disable
       - PRODUCT_SERVICE_URL=http://product-service:${PRODUCT_PORT:-8082}
       - JWT_SECRET=${JWT_SECRET}
       - RABBITMQ_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@rabbitmq:5672/
@@ -169,34 +131,68 @@ services:
         limits:
           memory: 256M
     depends_on:
-      order-postgres:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
     networks:
       - market_net
 
-  order-postgres:
-    image: postgres:15-alpine
-    container_name: order-postgres
+  # Payment Service
+  payment-service:
+    image: ghcr.io/qosmuratsamat0/payment-service:latest
+    container_name: payment-service
     restart: unless-stopped
+    env_file:
+      - ./payment-service/.env
     environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${ORDER_DB_NAME}
-    deploy:
-      resources:
-        limits:
-          memory: 200M
-    volumes:
-      - order-pgdata:/var/lib/postgresql/data
-      - ./order-service/migrations:/docker-entrypoint-initdb.d
+      - HTTP_SERVER_ADDRESS=:8084
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${PAYMENT_DB_NAME}?sslmode=disable
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${ORDER_DB_NAME}" ]
-      interval: 5s
+      test: [ "CMD", "curl", "-f", "http://localhost:8084/health" ]
+      interval: 10s
       timeout: 5s
       retries: 5
       start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    depends_on:
+      user-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - market_net
+
+  # Notification Service
+  notification-service:
+    image: ghcr.io/qosmuratsamat0/notification-service:latest
+    container_name: notification-service
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@rabbitmq:5672/
+      - HTTP_SERVER_ADDRESS=:8085
+    ports:
+      - "${NOTIFICATION_PORT:-8085}:${NOTIFICATION_PORT:-8085}"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8085/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     networks:
       - market_net
 
@@ -305,93 +301,9 @@ services:
     networks:
       - market_net
 
-  # Payment Service
-  payment-service:
-    image: ghcr.io/qosmuratsamat0/payment-service:latest
-    container_name: payment-service
-    restart: unless-stopped
-    env_file:
-      - ./payment-service/.env
-    environment:
-      - HTTP_SERVER_ADDRESS=:8084
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8084/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-    depends_on:
-      user-service:
-        condition: service_healthy
-      order-service:
-        condition: service_healthy
-      payment-postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - market_net
-
-  payment-postgres:
-    image: postgres:15-alpine
-    container_name: payment-postgres
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${PAYMENT_DB_NAME}
-    deploy:
-      resources:
-        limits:
-          memory: 200M
-    volumes:
-      - payment-pgdata:/var/lib/postgresql/data
-      - ./payment-service/migrations:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${PAYMENT_DB_NAME}" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-    networks:
-      - market_net
-
-  # Notification Service
-  notification-service:
-    image: ghcr.io/qosmuratsamat0/notification-service:latest
-    container_name: notification-service
-    restart: unless-stopped
-    environment:
-      - RABBITMQ_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@rabbitmq:5672/
-      - HTTP_SERVER_ADDRESS=:8085
-    ports:
-      - "${NOTIFICATION_PORT:-8085}:${NOTIFICATION_PORT:-8085}"
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8085/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-    depends_on:
-      - rabbitmq
-    networks:
-      - market_net
-
 networks:
   market_net:
     driver: bridge
 
 volumes:
-  auth-pgdata:
-  user-pgdata:
-  product-pgdata:
-  order-pgdata:
-  payment-pgdata:
+  pgdata:
