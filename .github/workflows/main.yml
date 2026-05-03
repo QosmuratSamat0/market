@@ -105,6 +105,7 @@ jobs:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ANSIBLE_HOST_KEY_CHECKING: 'False'
         run: |
           # 1. Подготовка ключа
           echo "$SSH_KEY" > private_key.pem
