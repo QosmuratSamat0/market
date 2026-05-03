@@ -16,7 +16,7 @@
         state: present
 
     - name: 2. Capacity Planning - Multi-level Stress Test on Order Service
-      shell: "ab -n {{ item.reqs }} -c {{ item.conc }} {{ target_url }}/orders/health"
+      shell: "ab -n {{ item.reqs }} -c {{ item.conc }} -s 120 {{ target_url }}/orders/health"
       register: load_results
       loop: "{{ load_levels }}"
       failed_when: false
@@ -45,7 +45,7 @@
         label: "Reporting for {{ item.item.name }}"
 
     - name: 5. Automation Test - Kill one Order Service instance (Self-Healing)
-      shell: "docker kill $(docker ps -q --filter 'name=order-service' | head -n 1)"
+      shell: "docker kill order-service"
       register: kill_result
       failed_when: false
 
@@ -54,7 +54,7 @@
         seconds: 30
 
     - name: 7. Verify Container Recovery
-      shell: docker ps --filter "name=order-service" --format "{{ '{{' }}.Status{{ '}}' }}"
+      shell: docker ps -a --filter "name=order-service" --format "{{ '{{' }}.Status{{ '}}' }}"
       register: container_status
 
     - name: 8. Report Recovery Status
