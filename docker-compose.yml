@@ -14,10 +14,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 60s
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 256M
     depends_on:
       auth-postgres:
         condition: service_healthy
@@ -44,6 +45,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 60s
     networks:
       - market_net
 
@@ -61,10 +63,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 60s
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 256M
     depends_on:
       user-postgres:
         condition: service_healthy
@@ -91,6 +94,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 60s
     networks:
       - market_net
 
@@ -108,10 +112,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 60s
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 256M
     depends_on:
       product-postgres:
         condition: service_healthy
@@ -138,6 +143,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 60s
     networks:
       - market_net
 
@@ -157,6 +163,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 60s
     deploy:
       resources:
         limits:
@@ -189,6 +196,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 60s
     networks:
       - market_net
 
@@ -213,6 +221,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 60s
     deploy:
       resources:
         limits:
@@ -310,10 +319,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 60s
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 256M
     depends_on:
       user-service:
         condition: service_healthy
@@ -346,6 +356,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 60s
     networks:
       - market_net
 
@@ -364,10 +375,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 60s
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 256M
     depends_on:
       - rabbitmq
     networks:
