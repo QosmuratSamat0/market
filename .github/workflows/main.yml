@@ -103,7 +103,10 @@ jobs:
             
             # Валидация конфигурации
             chmod +x ./scripts/validate_config.sh
-            source .env && ./scripts/validate_config.sh
+            set -a
+            source .env
+            set +a
+            ./scripts/validate_config.sh
             
             # Логинимся в GHCR на сервере (используем PAT, т.к. GITHUB_TOKEN не работает вне CI)
             if [ -n "${{ secrets.GHCR_TOKEN }}" ]; then
