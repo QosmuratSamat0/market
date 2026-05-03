@@ -26,7 +26,7 @@ services:
       - ./payment-service/migrations:/migrations/payment:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${DB_USER}" ]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
       start_period: 60s
@@ -45,7 +45,7 @@ services:
       - HTTP_SERVER_ADDRESS=:8080
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 10
       start_period: 120s
@@ -70,7 +70,7 @@ services:
       - HTTP_SERVER_ADDRESS=:8081
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8081/health" ]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 10
       start_period: 120s
@@ -95,7 +95,7 @@ services:
       - HTTP_SERVER_ADDRESS=:8082
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8082/health" ]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 10
       start_period: 120s
@@ -122,7 +122,7 @@ services:
       - HTTP_SERVER_ADDRESS=:8083
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8083/health" ]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 10
       start_period: 120s
@@ -150,7 +150,7 @@ services:
       - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${PAYMENT_DB_NAME}?sslmode=disable
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8084/health" ]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 10
       start_period: 120s
@@ -182,7 +182,7 @@ services:
       - "${NOTIFICATION_PORT:-8085}:${NOTIFICATION_PORT:-8085}"
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8085/health" ]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 10
       start_period: 120s
@@ -214,7 +214,7 @@ services:
       - ./api-gateway/nginx.conf:/etc/nginx/templates/default.conf.template:ro
     healthcheck:
       test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1" ]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 10
       start_period: 120s
@@ -292,7 +292,7 @@ services:
       - "15672:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
-      interval: 15s
+      interval: 5s
       timeout: 10s
       retries: 20
       start_period: 400s

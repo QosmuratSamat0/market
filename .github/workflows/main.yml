@@ -53,8 +53,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.service }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.service }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
   deploy:
     runs-on: ubuntu-latest
@@ -127,10 +127,15 @@ jobs:
               echo "WARNING: GHCR_TOKEN not set, pulling without auth"
             fi
             
-            # Скачиваем новые образы по очереди (чтобы не перегружать сеть и CPU)
+            # Скачиваем новые образы по очереди с повторными попытками при ошибках сети
             for img in $(sudo docker compose config --images); do
               echo "Pulling $img..."
-              sudo docker pull $img
+              for i in {1..3}; do
+                sudo docker pull $img && break || {
+                  echo "Retry $i for $img..."
+                  sleep 5
+                }
+              done
             done
             sudo docker compose up -d --force-recreate --remove-orphans
             
