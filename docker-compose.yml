@@ -26,7 +26,7 @@ services:
       - ./payment-service/migrations:/migrations/payment:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${DB_USER}" ]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
       start_period: 60s
@@ -47,8 +47,8 @@ services:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 120s
     deploy:
       resources:
         limits:
@@ -72,8 +72,8 @@ services:
       test: [ "CMD", "curl", "-f", "http://localhost:8081/health" ]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 120s
     deploy:
       resources:
         limits:
@@ -97,8 +97,8 @@ services:
       test: [ "CMD", "curl", "-f", "http://localhost:8082/health" ]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 120s
     deploy:
       resources:
         limits:
@@ -124,8 +124,8 @@ services:
       test: [ "CMD", "curl", "-f", "http://localhost:8083/health" ]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 120s
     deploy:
       resources:
         limits:
@@ -152,8 +152,8 @@ services:
       test: [ "CMD", "curl", "-f", "http://localhost:8084/health" ]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 120s
     deploy:
       resources:
         limits:
@@ -184,8 +184,8 @@ services:
       test: [ "CMD", "curl", "-f", "http://localhost:8085/health" ]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 120s
     deploy:
       resources:
         limits:
@@ -216,12 +216,12 @@ services:
       test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1" ]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 120s
     deploy:
       resources:
         limits:
-          memory: 32M
+          memory: 64M
     networks:
       - market_net
 
@@ -238,7 +238,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 100M
     networks:
       - market_net
 
@@ -253,7 +253,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 100M
     networks:
       - market_net
 
@@ -289,10 +289,10 @@ services:
       - "5672:5672"
       - "15672:15672"
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
       interval: 15s
       timeout: 10s
-      retries: 15
+      retries: 20
       start_period: 400s
     deploy:
       resources:
