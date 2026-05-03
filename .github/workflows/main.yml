@@ -123,8 +123,11 @@ jobs:
               echo "WARNING: GHCR_TOKEN not set, pulling without auth"
             fi
             
-            # Скачиваем новые образы и перезапускаем
-            sudo docker compose pull
+            # Скачиваем новые образы по очереди (чтобы не перегружать сеть и CPU)
+            for img in $(sudo docker compose config --images); do
+              echo "Pulling $img..."
+              sudo docker pull $img
+            done
             sudo docker compose up -d --force-recreate --remove-orphans
             
             # Ждём, чтобы контейнеры запустились
