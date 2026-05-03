@@ -59,6 +59,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Copy config files via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml,scripts/validate_config.sh,api-gateway/nginx.conf,*/migrations/,monitoring/prometheus/"
+          target: "~/market-place"
+
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -69,15 +78,7 @@ jobs:
           script: |
             set -e
             
-            # Если папки нет, клонируем репозиторий
-            if [ ! -d "$HOME/market-place" ]; then
-              cd $HOME
-              git clone https://github.com/QosmuratSamat0/market.git market-place
-            fi
-            
-            cd $HOME/market-place
-            git fetch origin main
-            git reset --hard origin/main
+            cd ~/market-place
             
             # Создаем общий .env файл для Docker Compose
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" > .env
@@ -100,6 +101,7 @@ jobs:
             echo "NOTIFICATION_PORT=${{ secrets.NOTIFICATION_PORT }}" >> .env
             
             # Создаем .env файл для payment-service
+            mkdir -p ./payment-service
             echo "${{ secrets.PAYMENT_SERVICE_ENV }}" > ./payment-service/.env
             
             # Валидация конфигурации
@@ -109,11 +111,11 @@ jobs:
             set +a
             ./scripts/validate_config.sh
             
-            # Логинимся в GHCR на сервере (используем PAT, т.к. GITHUB_TOKEN не работает вне CI)
+            # Логинимся в GHCR на сервере
             if [ -n "${{ secrets.GHCR_TOKEN }}" ]; then
               echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io -u ${{ secrets.GHCR_USER }} --password-stdin
             else
-              echo "WARNING: GHCR_TOKEN not set, pulling without auth (packages must be public)"
+              echo "WARNING: GHCR_TOKEN not set, pulling without auth"
             fi
             
             # Скачиваем новые образы и перезапускаем
