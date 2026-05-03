@@ -51,7 +51,7 @@
 
     - name: 6. Wait for Self-Healing (restart policy)
       pause:
-        seconds: 30
+        seconds: 90
 
     - name: 7. Verify Container Recovery
       shell: docker ps -a --filter "name=order-service" --format "{{ '{{' }}.Status{{ '}}' }}"
