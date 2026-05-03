@@ -66,8 +66,10 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -e
             cd ~/market
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             
             # Создаем общий .env файл для Docker Compose
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" > .env
