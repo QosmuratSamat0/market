@@ -67,7 +67,14 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            cd ~/market
+            
+            # Если папки нет, клонируем репозиторий
+            if [ ! -d "~/market-place" ]; then
+              cd ~
+              git clone https://github.com/QosmuratSamat0/market.git market-place
+            fi
+            
+            cd ~/market-place
             git fetch origin main
             git reset --hard origin/main
             
