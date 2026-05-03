@@ -3,7 +3,7 @@
   hosts: all
   become: yes
   vars:
-    target_url: "http://{{ ansible_host }}"
+    target_url: "http://localhost"
     load_levels:
       - { name: "low", reqs: 500, conc: 20 }
       - { name: "medium", reqs: 2000, conc: 50 }
@@ -45,7 +45,7 @@
         label: "Reporting for {{ item.item.name }}"
 
     - name: 5. Automation Test - Kill one Order Service instance (Self-Healing)
-      shell: "docker kill order-service"
+      shell: "docker exec order-service kill 1"
       register: kill_result
       failed_when: false
 
