@@ -15,7 +15,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 300M
+          memory: 150M
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
@@ -52,7 +52,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 64M
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,7 +77,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 64M
     depends_on:
       postgres:
         condition: service_healthy
@@ -102,7 +102,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 64M
     depends_on:
       postgres:
         condition: service_healthy
@@ -129,7 +129,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 64M
     depends_on:
       postgres:
         condition: service_healthy
@@ -157,7 +157,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 64M
     depends_on:
       user-service:
         condition: service_healthy
@@ -189,7 +189,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 64M
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -221,7 +221,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 64M
+          memory: 32M
     networks:
       - market_net
 
@@ -238,7 +238,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 128M
     networks:
       - market_net
 
@@ -253,7 +253,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 128M
     networks:
       - market_net
 
@@ -297,7 +297,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 200M
     networks:
       - market_net
 
