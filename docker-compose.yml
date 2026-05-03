@@ -3,11 +3,17 @@ services:
   auth-service:
     image: ghcr.io/qosmuratsamat0/auth-service:latest
     container_name: auth-service
+    restart: unless-stopped
     environment:
       - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@auth-postgres:5432/${AUTH_DB_NAME}?sslmode=disable
       - USER_SERVICE_URL=http://user-service:${USER_PORT:-8081}
       - JWT_SECRET=${JWT_SECRET}
       - HTTP_PORT=${AUTH_PORT:-8080}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${AUTH_PORT:-8080}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -21,6 +27,7 @@ services:
   auth-postgres:
     image: postgres:15-alpine
     container_name: auth-postgres
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
@@ -44,10 +51,16 @@ services:
   user-service:
     image: ghcr.io/qosmuratsamat0/user-service:latest
     container_name: user-service
+    restart: unless-stopped
     environment:
       - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@user-postgres:5432/${USER_DB_NAME}?sslmode=disable
       - JWT_SECRET=${JWT_SECRET}
       - HTTP_PORT=${USER_PORT:-8081}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${USER_PORT:-8081}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -61,6 +74,7 @@ services:
   user-postgres:
     image: postgres:15-alpine
     container_name: user-postgres
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
@@ -84,10 +98,16 @@ services:
   product-service:
     image: ghcr.io/qosmuratsamat0/product-service:latest
     container_name: product-service
+    restart: unless-stopped
     environment:
       - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@product-postgres:5432/${PRODUCT_DB_NAME}?sslmode=disable
       - JWT_SECRET=${JWT_SECRET}
       - HTTP_PORT=${PRODUCT_PORT:-8082}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PRODUCT_PORT:-8082}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -101,6 +121,7 @@ services:
   product-postgres:
     image: postgres:15-alpine
     container_name: product-postgres
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
@@ -123,13 +144,19 @@ services:
   # Order Service
   order-service:
     image: ghcr.io/qosmuratsamat0/order-service:latest
-    container_name: order-service
+    # container_name: order-service (removed to support horizontal scaling via --scale)
+    restart: unless-stopped
     environment:
       - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@order-postgres:5432/${ORDER_DB_NAME}?sslmode=disable
       - PRODUCT_SERVICE_URL=http://product-service:${PRODUCT_PORT:-8082}
       - JWT_SECRET=${JWT_SECRET}
       - RABBITMQ_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@rabbitmq:5672/
       - HTTP_PORT=${ORDER_PORT:-8083}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${ORDER_PORT:-8083}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -145,6 +172,7 @@ services:
   order-postgres:
     image: postgres:15-alpine
     container_name: order-postgres
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
@@ -168,6 +196,7 @@ services:
   api-gateway:
     image: nginx:alpine
     container_name: api-gateway
+    restart: unless-stopped
     ports:
       - "${HTTP_PORT:-80}:80"
     environment:
@@ -179,6 +208,11 @@ services:
       - NOTIFICATION_PORT=${NOTIFICATION_PORT:-8085}
     volumes:
       - ./api-gateway/nginx.conf:/etc/nginx/templates/nginx.conf.template:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -190,10 +224,12 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
+    restart: unless-stopped
     ports:
       - "9095:9090"
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alert.rules:/etc/prometheus/alert.rules:ro
     deploy:
       resources:
         limits:
@@ -204,6 +240,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
+    restart: unless-stopped
     ports:
       - "3001:3000"
     environment:
@@ -239,6 +276,7 @@ services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: rabbitmq
+    restart: unless-stopped
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBIT_USER:-guest}
       - RABBITMQ_DEFAULT_PASS=${RABBIT_PASS:-guest}
@@ -261,8 +299,14 @@ services:
   payment-service:
     image: ghcr.io/qosmuratsamat0/payment-service:latest
     container_name: payment-service
+    restart: unless-stopped
     env_file:
       - ./payment-service/.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PAYMENT_PORT:-8084}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -282,6 +326,7 @@ services:
   payment-postgres:
     image: postgres:15-alpine
     container_name: payment-postgres
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
@@ -305,11 +350,17 @@ services:
   notification-service:
     image: ghcr.io/qosmuratsamat0/notification-service:latest
     container_name: notification-service
+    restart: unless-stopped
     environment:
       - RABBITMQ_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@rabbitmq:5672/
       - HTTP_PORT=${NOTIFICATION_PORT:-8085}
     ports:
       - "${NOTIFICATION_PORT:-8085}:${NOTIFICATION_PORT:-8085}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${NOTIFICATION_PORT:-8085}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:

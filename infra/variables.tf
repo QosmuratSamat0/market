@@ -11,3 +11,9 @@ variable "public_subnet_cidr" {
   type        = string
   default     = "10.0.10.0/24"
 }
+
+variable "instance_shape" {
+  description = "The shape of the instance for vertical scaling"
+  type        = string
+  default     = "VM.Standard.E2.1.Micro" # Change to VM.Standard.A1.Flex for more CPU/RAM
+}

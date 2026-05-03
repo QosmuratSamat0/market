@@ -78,6 +78,10 @@ jobs:
             # Создаем .env файл для payment-service
             echo "${{ secrets.PAYMENT_SERVICE_ENV }}" > ./payment-service/.env
             
+            # Валидация конфигурации
+            chmod +x ./scripts/validate_config.sh
+            source .env && ./scripts/validate_config.sh
+            
             # Логинимся в GHCR на сервере
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
@@ -88,3 +92,29 @@ jobs:
             # Cleanup old unused images to save disk space
             sudo docker image prune -f
           debug: true
+
+  sre-testing:
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run SRE Capacity & Resilience Test
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          # 1. Подготовка ключа
+          echo "$SSH_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          
+          # 2. Указываем путь к ключу для Ansible через переменную окружения
+          export SSH_KEY_PATH=$(pwd)/private_key.pem
+          
+          # 3. Запуск теста
+          ansible-playbook -i ansible/inventory.ini ansible/stress_test.yml
+          
+          # 4. Удаление ключа
+          rm private_key.pem

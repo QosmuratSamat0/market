@@ -105,6 +105,10 @@ func (a *App) Run() {
 	// HTTP server for SSE
 	mux := http.NewServeMux()
 	mux.HandleFunc("/events", a.handleSSE)
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
 
 	srv := &http.Server{
 		Addr:    ":" + a.cfg.HttpPort,

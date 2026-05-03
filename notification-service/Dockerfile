@@ -10,7 +10,7 @@ COPY . .
 RUN go build -o main cmd/main.go
 
 FROM alpine:latest
-
+RUN apk add --no-cache curl
 WORKDIR /app
 COPY --from=builder /app/main .
 # COPY --from=builder /app/config ./config

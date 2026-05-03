@@ -54,6 +54,12 @@ func New(cfg *config.Config) (*App, error) {
 	// Metrics endpoint for Prometheus
 	r.Handle("/metrics", promhttp.Handler())
 
+	// Health check endpoint
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
 	userModule := httpHandler.NewUserModule(userUC, cfg.JWTSecret)
 	userModule.RegisterRoutes(r)
 
