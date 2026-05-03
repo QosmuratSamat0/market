@@ -293,11 +293,11 @@ services:
       - "5672:5672"
       - "15672:15672"
     healthcheck:
-      test: rabbitmq-diagnostics -q ping
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 15s
       timeout: 10s
-      retries: 10
-      start_period: 120s
+      retries: 15
+      start_period: 400s
     deploy:
       resources:
         limits:
