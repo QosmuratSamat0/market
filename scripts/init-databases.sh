@@ -4,7 +4,7 @@ set -e
 # Wait for postgres to be ready
 # psql is available as postgres user
 
-databases=("${AUTH_DB_NAME}" "${USER_DB_NAME}" "${PRODUCT_DB_NAME}" "${ORDER_DB_NAME}" "${PAYMENT_DB_NAME}")
+databases=("${AUTH_DB_NAME}" "${USER_DB_NAME}" "${PRODUCT_DB_NAME}" "${ORDER_DB_NAME}" "${PAYMENT_DB_NAME}" "grafana")
 
 for db in "${databases[@]}"; do
     if [ -n "$db" ]; then
