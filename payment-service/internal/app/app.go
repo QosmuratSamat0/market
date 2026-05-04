@@ -21,6 +21,7 @@ import (
 	"github.com/QosmuratSamat0/payment-service/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type App struct {
@@ -67,6 +68,7 @@ func New(cfg *config.Config) (*App, error) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	})
+	r.Handle("/metrics", promhttp.Handler())
 
 	paymentModule := httpHandler.NewPaymentModule(paymentService)
 	paymentModule.RegisterRoutes(r)

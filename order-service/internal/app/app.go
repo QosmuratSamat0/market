@@ -96,7 +96,7 @@ func New(cfg *config.Config) (*App, error) {
 		"order_service_payment_queue", // name
 		false,                         // durable
 		false,                         // delete when unused
-		true,                          // exclusive
+		false,                         // exclusive
 		false,                         // no-wait
 		nil,                           // arguments
 	)

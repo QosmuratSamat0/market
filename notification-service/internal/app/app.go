@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/QosmuratSamat0/notification-service/internal/config"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -62,7 +63,7 @@ func (a *App) Run() {
 		"notification_service_queue", // name
 		false,                        // durable
 		false,                        // delete when unused
-		true,                         // exclusive
+		false,                        // exclusive
 		false,                        // no-wait
 		nil,                          // arguments
 	)
@@ -105,6 +106,7 @@ func (a *App) Run() {
 	// HTTP server for SSE
 	mux := http.NewServeMux()
 	mux.HandleFunc("/events", a.handleSSE)
+	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
