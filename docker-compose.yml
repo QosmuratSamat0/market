@@ -35,6 +35,7 @@ services:
 
   # Auth Service
   auth-service:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/auth-service:latest
     build: ./auth-service
     restart: always
     environment:
@@ -56,6 +57,7 @@ services:
 
   # User Service
   user-service:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/user-service:latest
     build: ./user-service
     restart: always
     environment:
@@ -76,6 +78,7 @@ services:
 
   # Product Service
   product-service:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/product-service:latest
     build: ./product-service
     restart: always
     environment:
@@ -96,6 +99,7 @@ services:
 
   # Order Service
   order-service:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/order-service:latest
     build: ./order-service
     restart: always
     environment:
@@ -122,6 +126,7 @@ services:
 
   # Payment Service
   payment-service:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/payment-service:latest
     build: ./payment-service
     restart: always
     environment:
@@ -150,6 +155,7 @@ services:
 
   # Notification Service
   notification-service:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/notification-service:latest
     build: ./notification-service
     restart: always
     environment:
