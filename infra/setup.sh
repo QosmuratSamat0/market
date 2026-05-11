@@ -23,6 +23,12 @@ if ! grep -q '^/swapfile none swap sw 0 0$' /etc/fstab; then
   echo '/swapfile none swap sw 0 0' >> /etc/fstab
 fi
 
+# Wait for dpkg lock (unattended-upgrades often runs on boot)
+while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+  echo "Waiting for dpkg lock..."
+  sleep 5
+done
+
 # Install Docker, Compose, Git, and firewall persistence tools.
 apt-get update
 apt-get upgrade -y
