@@ -1,5 +1,5 @@
 # Yandex Cloud Configuration
-yc_token     = "" # Вставьте ваш токен или используйте переменную окружения YC_TOKEN
+yc_token     = ""
 yc_cloud_id  = "b1gq9uaq0o9u93055bg2"
 yc_folder_id = "b1gubvt2glv0gqm6prc3"
 yc_zone      = "ru-central1-a"
