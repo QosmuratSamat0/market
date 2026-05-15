@@ -14,6 +14,7 @@
       package:
         name: apache2-utils
         state: present
+        update_cache: yes
 
     - name: 2. Capacity Planning - Multi-level Stress Test on Order Service
       shell: "ab -n {{ item.reqs }} -c {{ item.conc }} -s 120 {{ target_url }}/orders/health"
