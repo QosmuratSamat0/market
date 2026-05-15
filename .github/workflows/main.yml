@@ -65,7 +65,6 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          # Копируем только необходимые файлы для запуска
           source: "docker-compose.yml,api-gateway/nginx.conf,monitoring/prometheus/,scripts/,auth-service/migrations/,user-service/migrations/,product-service/migrations/,order-service/migrations/,payment-service/migrations/"
           target: ${{ env.PROJECT_ROOT }}
 
@@ -79,7 +78,6 @@ jobs:
             set -e
             cd ${{ env.PROJECT_ROOT }}
 
-            # Генерируем общий .env файл
             cat <<EOF > .env
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
@@ -93,11 +91,9 @@ jobs:
             PAYMENT_DB_NAME=payment_db
             EOF
 
-            # Ожидаем завершения установки Docker (cloud-init)
             echo "Waiting for cloud-init to finish..."
             cloud-init status --wait || true
 
-            # Fallback: Если cloud-init упал и Docker не установился, ставим его вручную
             if ! command -v docker &> /dev/null; then
               echo "Docker not found! Cloud-init might have failed. Installing manually..."
               sudo DEBIAN_FRONTEND=noninteractive apt-get update
@@ -106,20 +102,15 @@ jobs:
               sudo usermod -aG docker $USER || true
             fi
 
-            # Логин в реестр на сервере
             echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # SRE-оптимизация: скачиваем новые образы до остановки старых (минимум downtime)
             sudo docker compose pull
 
-            # Очистка порта 80 от системных процессов (SRE: предотвращаем конфликт портов)
             sudo systemctl stop nginx || true
             sudo fuser -k 80/tcp || true
 
-            # Перезапуск сервисов
             sudo docker compose up -d --remove-orphans
 
-            # Healthcheck: ждем 30 секунд и проверяем статус
             echo "Waiting for healthchecks..."
             sleep 30
             UNHEALTHY=$(sudo docker ps --filter "health=unhealthy" -q)
@@ -129,7 +120,6 @@ jobs:
               exit 1
             fi
 
-            # Очистка старых неиспользуемых образов (SRE: сохраняем место на диске)
             sudo docker image prune -f
 
   sre-stress-test:
