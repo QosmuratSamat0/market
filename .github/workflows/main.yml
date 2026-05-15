@@ -112,6 +112,10 @@ jobs:
             # SRE-оптимизация: скачиваем новые образы до остановки старых (минимум downtime)
             sudo docker compose pull
 
+            # Очистка порта 80 от системных процессов (SRE: предотвращаем конфликт портов)
+            sudo systemctl stop nginx || true
+            sudo fuser -k 80/tcp || true
+
             # Перезапуск сервисов
             sudo docker compose up -d --remove-orphans
 
