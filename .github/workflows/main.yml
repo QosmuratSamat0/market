@@ -132,6 +132,9 @@ jobs:
       - name: Run Resilience Tests (Ansible)
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'False'
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY_PATH: private_key.pem
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
           chmod 600 private_key.pem
