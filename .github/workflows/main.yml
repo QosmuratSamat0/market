@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_OWNER: ${{ github.repository_owner }}
+  IMAGE_OWNER: qosmuratsamat0
   PROJECT_ROOT: /home/yc-user/market-place
 
 jobs:
