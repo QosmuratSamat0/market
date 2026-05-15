@@ -1,0 +1,7 @@
+spec:
+  containers:
+    - image: nginx:latest
+      securityContext:
+        privileged: false
+      stdin: false
+      tty: false

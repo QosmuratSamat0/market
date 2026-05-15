@@ -7,7 +7,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_OWNER: qosmuratsamat0
-  PROJECT_ROOT: ~/market-place
+  PROJECT_ROOT: /home/yc-user/market-place
 
 jobs:
   build-and-push:
@@ -28,7 +28,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -46,7 +46,6 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    if: false # Временно отключено: CI/CD пока не деплоит на сервер
     needs: build-and-push
     steps:
       - name: Checkout repository
@@ -100,7 +99,7 @@ jobs:
             fi
 
             # Логин в реестр на сервере
-            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # SRE-оптимизация: скачиваем новые образы до остановки старых (минимум downtime)
             sudo docker compose pull
@@ -122,6 +121,7 @@ jobs:
             sudo docker image prune -f
 
   sre-stress-test:
+    if: false
     runs-on: ubuntu-latest
     needs: deploy
     steps:

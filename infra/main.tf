@@ -1,132 +1,56 @@
 terraform {
   required_providers {
-    oci = {
-      source  = "oracle/oci"
-      version = ">= 4.0.0"
+    yandex = {
+      source = "yandex-cloud/yandex"
     }
   }
+  required_version = ">= 0.13"
 }
 
-provider "oci" {
-  tenancy_ocid     = var.tenancy_ocid
-  user_ocid        = var.user_ocid
-  fingerprint      = var.fingerprint
-  private_key_path = var.private_key_path
-  region           = var.region
+provider "yandex" {
+  token     = var.yc_token
+  cloud_id  = var.yc_cloud_id
+  folder_id = var.yc_folder_id
+  zone      = var.yc_zone
 }
 
-# Поиск доступных зон (Availability Domains)
-data "oci_identity_availability_domains" "ads" {
-  compartment_id = var.compartment_id
+resource "yandex_vpc_network" "network-1" {
+  name = "network1"
 }
 
-# Поиск образа Ubuntu 24.04
-data "oci_core_images" "ubuntu" {
-  compartment_id           = var.compartment_id
-  operating_system         = "Canonical Ubuntu"
-  operating_system_version = "24.04"
-  shape                    = "VM.Standard.E2.1.Micro"
-  sort_by                  = "TIMECREATED"
-  sort_order               = "DESC"
+resource "yandex_vpc_subnet" "subnet-1" {
+  name           = "subnet1"
+  zone           = var.yc_zone
+  network_id     = yandex_vpc_network.network-1.id
+  v4_cidr_blocks = ["192.168.10.0/24"]
 }
 
-# Поиск существующей VCN (samat-vcn-1)
-data "oci_core_vcns" "existing_vcn" {
-  compartment_id = var.compartment_id
-  display_name   = "samat-vcn-1"
+data "yandex_compute_image" "container-optimized-image" {
+  family = "container-optimized-image"
 }
 
-data "oci_core_internet_gateways" "existing" {
-  compartment_id = var.compartment_id
-  vcn_id         = data.oci_core_vcns.existing_vcn.virtual_networks[0].id
-}
+resource "yandex_compute_instance" "instance-based-on-coi" {
+  name = "samat-coi-vm"
 
-locals {
-  vcn_id                        = data.oci_core_vcns.existing_vcn.virtual_networks[0].id
-  existing_internet_gateway_ids = [for gateway in data.oci_core_internet_gateways.existing.gateways : gateway.id if gateway.enabled]
-  internet_gateway_id           = concat(local.existing_internet_gateway_ids, oci_core_internet_gateway.server_igw[*].id)[0]
-}
-
-# Public network path for the VM. The previously configured subnet prohibits
-# public IPs, so internet-facing instances need their own public subnet.
-resource "oci_core_internet_gateway" "server_igw" {
-  count = length(local.existing_internet_gateway_ids) == 0 ? 1 : 0
-
-  compartment_id = var.compartment_id
-  vcn_id         = local.vcn_id
-  display_name   = "server-internet-gateway"
-  enabled        = true
-}
-
-resource "oci_core_route_table" "server_public_route_table" {
-  compartment_id = var.compartment_id
-  vcn_id         = local.vcn_id
-  display_name   = "server-public-route-table"
-
-  route_rules {
-    destination       = "0.0.0.0/0"
-    destination_type  = "CIDR_BLOCK"
-    network_entity_id = local.internet_gateway_id
-  }
-}
-
-resource "oci_core_subnet" "server_public_subnet" {
-  compartment_id             = var.compartment_id
-  vcn_id                     = local.vcn_id
-  cidr_block                 = var.public_subnet_cidr
-  display_name               = "server-public-subnet"
-  dns_label                  = "serverpublic"
-  route_table_id             = oci_core_route_table.server_public_route_table.id
-  prohibit_public_ip_on_vnic = false
-}
-
-# Создание группы безопасности (Security Group) для открытия портов
-resource "oci_core_network_security_group" "server_nsg" {
-  compartment_id = var.compartment_id
-  vcn_id         = local.vcn_id
-  display_name   = "server-security-group"
-}
-
-# Правила для портов 80, 81, 443, 3000, 3001, 9090, 9091, 22
-resource "oci_core_network_security_group_security_rule" "ingress_rules" {
-  for_each = toset(["80", "81", "443", "3000", "3001", "9090", "9091", "9095", "22"])
-
-  network_security_group_id = oci_core_network_security_group.server_nsg.id
-  direction                 = "INGRESS"
-  protocol                  = "6" # TCP
-  source                    = "0.0.0.0/0"
-  source_type               = "CIDR_BLOCK"
-
-  tcp_options {
-    destination_port_range {
-      min = each.value
-      max = each.value
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.container-optimized-image.id
+      size     = 15
     }
   }
-}
 
-# Создание инстанса
-resource "oci_core_instance" "free_server" {
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
-  compartment_id      = var.compartment_id
-  shape               = "VM.Standard.E2.1.Micro"
-  display_name        = "samat"
-
-  create_vnic_details {
-    subnet_id        = oci_core_subnet.server_public_subnet.id
-    assign_public_ip = true
-    nsg_ids          = [oci_core_network_security_group.server_nsg.id]
+  network_interface {
+    subnet_id = yandex_vpc_subnet.subnet-1.id
+    nat       = true
   }
 
-  source_details {
-    source_type = "image"
-    source_id   = data.oci_core_images.ubuntu.images[0].id
+  resources {
+    cores  = 2
+    memory = 4
   }
 
   metadata = {
-    ssh_authorized_keys = var.ssh_public_key
-    user_data           = base64encode(file("${path.module}/setup.sh"))
+    docker-container-declaration = file("${path.module}/declaration.yaml")
+    user-data                    = templatefile("${path.module}/cloud_config.yaml", { ssh_public_key = var.ssh_public_key })
   }
-
-  preserve_boot_volume = false
 }
