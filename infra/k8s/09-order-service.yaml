@@ -36,8 +36,18 @@ spec:
                 secretKeyRef:
                   name: market-secret
                   key: JWT_SECRET
+            - name: RABBITMQ_USER
+              valueFrom:
+                secretKeyRef:
+                  name: market-secret
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: market-secret
+                  key: RABBITMQ_PASS
             - name: RABBITMQ_URL
-              value: "amqp://guest:guest@rabbitmq:5672/"
+              value: "amqp://$(RABBITMQ_USER):$(RABBITMQ_PASS)@rabbitmq:5672/"
             - name: HTTP_SERVER_ADDRESS
               value: ":8083"
           ports:

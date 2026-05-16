@@ -2,13 +2,13 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - AUTH_DB_NAME=${AUTH_DB_NAME}
-      - USER_DB_NAME=${USER_DB_NAME}
-      - PRODUCT_DB_NAME=${PRODUCT_DB_NAME}
-      - ORDER_DB_NAME=${ORDER_DB_NAME}
-      - PAYMENT_DB_NAME=${PAYMENT_DB_NAME}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - AUTH_DB_NAME=${AUTH_DB_NAME:-auth_db}
+      - USER_DB_NAME=${USER_DB_NAME:-user_db}
+      - PRODUCT_DB_NAME=${PRODUCT_DB_NAME:-product_db}
+      - ORDER_DB_NAME=${ORDER_DB_NAME:-order_db}
+      - PAYMENT_DB_NAME=${PAYMENT_DB_NAME:-payment_db}
     deploy:
       replicas: 1
       placement:
@@ -40,12 +40,12 @@ services:
   auth-service:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/auth-service:latest
     environment:
-      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${AUTH_DB_NAME}?sslmode=disable
+      - DATABASE_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${AUTH_DB_NAME:-auth_db}?sslmode=disable
       - USER_SERVICE_URL=http://user-service:${USER_PORT:-8081}
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-key}
       - HTTP_SERVER_ADDRESS=:${AUTH_PORT:-8080}
     deploy:
-      replicas: 2
+      replicas: 1
       restart_policy:
         condition: on-failure
     networks:
@@ -54,31 +54,31 @@ services:
   user-service:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/user-service:latest
     environment:
-      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${USER_DB_NAME}?sslmode=disable
-      - JWT_SECRET=${JWT_SECRET}
+      - DATABASE_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${USER_DB_NAME:-user_db}?sslmode=disable
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-key}
       - HTTP_SERVER_ADDRESS=:${USER_PORT:-8081}
     deploy:
-      replicas: 2
+      replicas: 1
     networks:
       - market_net
 
   product-service:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/product-service:latest
     environment:
-      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${PRODUCT_DB_NAME}?sslmode=disable
-      - JWT_SECRET=${JWT_SECRET}
+      - DATABASE_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${PRODUCT_DB_NAME:-product_db}?sslmode=disable
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-key}
       - HTTP_SERVER_ADDRESS=:${PRODUCT_PORT:-8082}
     deploy:
-      replicas: 2
+      replicas: 1
     networks:
       - market_net
 
   order-service:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/order-service:latest
     environment:
-      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${ORDER_DB_NAME}?sslmode=disable
+      - DATABASE_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${ORDER_DB_NAME:-order_db}?sslmode=disable
       - PRODUCT_SERVICE_URL=http://product-service:${PRODUCT_PORT:-8082}
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-key}
       - RABBITMQ_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@rabbitmq:5672/
       - HTTP_SERVER_ADDRESS=:${ORDER_PORT:-8083}
     deploy:
@@ -89,13 +89,13 @@ services:
   payment-service:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/payment-service:latest
     environment:
-      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${PAYMENT_DB_NAME}?sslmode=disable
+      - DATABASE_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${PAYMENT_DB_NAME:-payment_db}?sslmode=disable
       - HTTP_SERVER_ADDRESS=:${PAYMENT_PORT:-8084}
       - ORDER_SERVICE_URL=http://order-service:${ORDER_PORT:-8083}
       - USER_SERVICE_URL=http://user-service:${USER_PORT:-8081}
       - RABBITMQ_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@rabbitmq:5672/
     deploy:
-      replicas: 2
+      replicas: 1
     networks:
       - market_net
 
