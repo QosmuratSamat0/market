@@ -1,0 +1,131 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - AUTH_DB_NAME=${AUTH_DB_NAME}
+      - USER_DB_NAME=${USER_DB_NAME}
+      - PRODUCT_DB_NAME=${PRODUCT_DB_NAME}
+      - ORDER_DB_NAME=${ORDER_DB_NAME}
+      - PAYMENT_DB_NAME=${PAYMENT_DB_NAME}
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - market_net
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBIT_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBIT_PASS:-guest}
+    deploy:
+      replicas: 1
+    networks:
+      - market_net
+
+  auth-service:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/auth-service:latest
+    environment:
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${AUTH_DB_NAME}?sslmode=disable
+      - USER_SERVICE_URL=http://user-service:${USER_PORT:-8081}
+      - JWT_SECRET=${JWT_SECRET}
+      - HTTP_SERVER_ADDRESS=:${AUTH_PORT:-8080}
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+    networks:
+      - market_net
+
+  user-service:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/user-service:latest
+    environment:
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${USER_DB_NAME}?sslmode=disable
+      - JWT_SECRET=${JWT_SECRET}
+      - HTTP_SERVER_ADDRESS=:${USER_PORT:-8081}
+    deploy:
+      replicas: 2
+    networks:
+      - market_net
+
+  product-service:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/product-service:latest
+    environment:
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${PRODUCT_DB_NAME}?sslmode=disable
+      - JWT_SECRET=${JWT_SECRET}
+      - HTTP_SERVER_ADDRESS=:${PRODUCT_PORT:-8082}
+    deploy:
+      replicas: 2
+    networks:
+      - market_net
+
+  order-service:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/order-service:latest
+    environment:
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${ORDER_DB_NAME}?sslmode=disable
+      - PRODUCT_SERVICE_URL=http://product-service:${PRODUCT_PORT:-8082}
+      - JWT_SECRET=${JWT_SECRET}
+      - RABBITMQ_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@rabbitmq:5672/
+      - HTTP_SERVER_ADDRESS=:${ORDER_PORT:-8083}
+    deploy:
+      replicas: 3
+    networks:
+      - market_net
+
+  payment-service:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/payment-service:latest
+    environment:
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${PAYMENT_DB_NAME}?sslmode=disable
+      - HTTP_SERVER_ADDRESS=:${PAYMENT_PORT:-8084}
+      - ORDER_SERVICE_URL=http://order-service:${ORDER_PORT:-8083}
+      - USER_SERVICE_URL=http://user-service:${USER_PORT:-8081}
+      - RABBITMQ_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@rabbitmq:5672/
+    deploy:
+      replicas: 2
+    networks:
+      - market_net
+
+  notification-service:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_OWNER:-qosmuratsamat0}/notification-service:latest
+    environment:
+      - RABBITMQ_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@rabbitmq:5672/
+      - HTTP_SERVER_ADDRESS=:${NOTIFICATION_PORT:-8085}
+    deploy:
+      replicas: 1
+    networks:
+      - market_net
+
+  api-gateway:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    environment:
+      - AUTH_PORT=${AUTH_PORT:-8080}
+      - USER_PORT=${USER_PORT:-8081}
+      - PRODUCT_PORT=${PRODUCT_PORT:-8082}
+      - ORDER_PORT=${ORDER_PORT:-8083}
+      - PAYMENT_PORT=${PAYMENT_PORT:-8084}
+      - NOTIFICATION_PORT=${NOTIFICATION_PORT:-8085}
+    configs:
+      - source: nginx_config
+        target: /etc/nginx/templates/default.conf.template
+    deploy:
+      mode: global
+    networks:
+      - market_net
+
+networks:
+  market_net:
+    driver: overlay
+
+volumes:
+  pgdata:
+
+configs:
+  nginx_config:
+    file: ../../api-gateway/nginx.conf

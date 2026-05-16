@@ -8,6 +8,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_OWNER: qosmuratsamat0
   PROJECT_ROOT: /home/yc-user/market-place
+  DEPLOY_MODE: swarm
 
 jobs:
   build-and-push:
@@ -65,7 +66,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.yml,api-gateway/nginx.conf,monitoring/prometheus/,scripts/,auth-service/migrations/,user-service/migrations/,product-service/migrations/,order-service/migrations/,payment-service/migrations/"
+          source: "docker-compose.yml,api-gateway/nginx.conf,monitoring/prometheus/,scripts/,infra/,auth-service/migrations/,user-service/migrations/,product-service/migrations/,order-service/migrations/,payment-service/migrations/"
           target: ${{ env.PROJECT_ROOT }}
 
       - name: Deploy via SSH
@@ -78,6 +79,7 @@ jobs:
             set -e
             cd ${{ env.PROJECT_ROOT }}
 
+            # Create environment variables file
             cat <<EOF > .env
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
@@ -91,35 +93,16 @@ jobs:
             PAYMENT_DB_NAME=payment_db
             EOF
 
-            echo "Waiting for cloud-init to finish..."
+            # Wait for cloud-init if necessary
             cloud-init status --wait || true
 
-            if ! command -v docker &> /dev/null; then
-              echo "Docker not found! Cloud-init might have failed. Installing manually..."
-              sudo DEBIAN_FRONTEND=noninteractive apt-get update
-              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-v2
-              sudo systemctl enable --now docker
-              sudo usermod -aG docker $USER || true
-            fi
-
+            # Login to GHCR (required for pull/deploy)
             echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            sudo docker compose pull
+            # Execute the orchestration script
+            sudo bash infra/setup.sh ${{ env.DEPLOY_MODE }}
 
-            sudo systemctl stop nginx || true
-            sudo fuser -k 80/tcp || true
-
-            sudo docker compose up -d --remove-orphans
-
-            echo "Waiting for healthchecks..."
-            sleep 30
-            UNHEALTHY=$(sudo docker ps --filter "health=unhealthy" -q)
-            if [ -n "$UNHEALTHY" ]; then
-              echo "Error: Some containers are unhealthy!"
-              sudo docker ps -a
-              exit 1
-            fi
-
+            # Cleanup
             sudo docker image prune -f
 
   sre-stress-test:

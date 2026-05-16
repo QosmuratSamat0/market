@@ -1,69 +1,78 @@
 #!/bin/bash
 set -euo pipefail
 
-# Redirect output to a log for cloud-init/user-data debugging.
-exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+ORCHESTRATOR="${1:-compose}"
 
-echo "Provisioning started..."
+echo "Project root: $PROJECT_ROOT"
+echo "Orchestrator: $ORCHESTRATOR"
 
-export DEBIAN_FRONTEND=noninteractive
+echo "Configuring firewall ports..."
 
-# Setup 2GB swap for the 1GB RAM free-tier instance.
-if ! swapon --show=NAME | grep -q '^/swapfile$'; then
-  if [ ! -f /swapfile ]; then
-    fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
-    chmod 600 /swapfile
-    mkswap /swapfile
-  fi
-
-  swapon /swapfile
-fi
-
-if ! grep -q '^/swapfile none swap sw 0 0$' /etc/fstab; then
-  echo '/swapfile none swap sw 0 0' >> /etc/fstab
-fi
-
-# Wait for dpkg lock (unattended-upgrades often runs on boot)
-while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
-  echo "Waiting for dpkg lock..."
-  sleep 5
+# 30080 - K8s NodePort
+# 2377 - Swarm cluster management
+for port in 30080 2377; do
+    sudo iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null \
+      || sudo iptables -A INPUT -p tcp --dport "$port" -j ACCEPT
 done
 
-# Install Docker, Compose, Git, and firewall persistence tools.
-apt-get update
-apt-get upgrade -y
-apt-get install -y docker.io docker-compose-v2 git iptables-persistent netfilter-persistent
+# 7946, 4789 - Swarm overlay network
+for port in 7946 4789; do
+    sudo iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null \
+      || sudo iptables -A INPUT -p tcp --dport "$port" -j ACCEPT
 
-systemctl enable --now docker
-
-# Open application and administration ports on the host firewall.
-for port in 22 80 81 443 3000 3001 9090 9091; do
-  iptables -C INPUT -m state --state NEW -p tcp --dport "$port" -j ACCEPT 2>/dev/null \
-    || iptables -I INPUT 6 -m state --state NEW -p tcp --dport "$port" -j ACCEPT
+    sudo iptables -C INPUT -p udp --dport "$port" -j ACCEPT 2>/dev/null \
+      || sudo iptables -A INPUT -p udp --dport "$port" -j ACCEPT
 done
 
-netfilter-persistent save || iptables-save > /etc/iptables/rules.v4
+cd "$PROJECT_ROOT"
 
-# Create the deployment user and grant Docker/sudo access.
-if ! id devops >/dev/null 2>&1; then
-  useradd -m -s /bin/bash devops
-fi
+case "$ORCHESTRATOR" in
+  compose)
+    echo "Deploying with Docker Compose..."
 
-usermod -aG sudo,docker devops
-echo "devops ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-devops
-chmod 440 /etc/sudoers.d/90-devops
+    docker compose pull
+    docker compose up -d --remove-orphans
+    docker compose ps
+    ;;
 
-# Copy the initial SSH access from the default Ubuntu user.
-mkdir -p /home/devops/.ssh
-if [ -f /home/ubuntu/.ssh/authorized_keys ]; then
-  cp /home/ubuntu/.ssh/authorized_keys /home/devops/.ssh/authorized_keys
-fi
-chown -R devops:devops /home/devops/.ssh
-chmod 700 /home/devops/.ssh
-chmod 600 /home/devops/.ssh/authorized_keys
+  swarm)
+    echo "Deploying with Docker Swarm..."
 
-# Create deployment directories.
-mkdir -p /home/devops/deploy/app /home/devops/deploy/monitoring /home/devops/deploy/npm
-chown -R devops:devops /home/devops/deploy
+    if ! docker info | grep -q "Swarm: active"; then
+      SERVER_IP=$(hostname -I | awk '{print $1}')
+      docker swarm init --advertise-addr "$SERVER_IP"
+    else
+      echo "Docker Swarm already active."
+    fi
 
-echo "Provisioning finished."
+    if [ -f .env ]; then
+      set -a
+      source .env
+      set +a
+    fi
+
+    cd "$PROJECT_ROOT/infra/swarm"
+    docker stack deploy -c docker-compose.swarm.yml market
+    docker stack services market
+    ;;
+
+  k8s)
+    echo "Deploying with Kubernetes / K3s..."
+
+    if ! command -v kubectl >/dev/null 2>&1; then
+      curl -sfL https://get.k3s.io | sudo sh -
+    fi
+
+    sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f "$PROJECT_ROOT/infra/k8s/"
+    sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get all -n market
+    ;;
+
+  *)
+    echo "Unknown orchestrator: $ORCHESTRATOR"
+    echo "Usage: bash infra/setup.sh {compose|swarm|k8s}"
+    exit 1
+    ;;
+esac
+
+echo "Deployment finished: $ORCHESTRATOR"

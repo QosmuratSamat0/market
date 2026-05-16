@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: market
+  labels:
+    app: api-gateway
+data:
+  nginx.conf: |
+    user  nginx;
+    worker_processes  auto;
+    events { worker_connections  1024; }
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+        sendfile        on;
+        resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+        server {
+            listen 80;
+            location /health { return 200 'OK'; }
+            location /auth/ { proxy_pass http://auth-service:8080/; }
+            location /users/ { proxy_pass http://user-service:8081/; }
+            location /products/ { proxy_pass http://product-service:8082/; }
+            location /orders/ { proxy_pass http://order-service:8083/; }
+            location /payments/ { proxy_pass http://payment-service:8084/; }
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: market
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+      volumes:
+        - name: config
+          configMap:
+            name: nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: market
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080
+  selector:
+    app: api-gateway
