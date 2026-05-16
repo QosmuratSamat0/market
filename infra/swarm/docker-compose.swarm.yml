@@ -15,6 +15,15 @@ services:
         constraints: [node.role == manager]
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ../../auth-service/migrations:/migrations/auth:ro
+      - ../../user-service/migrations:/migrations/user:ro
+      - ../../product-service/migrations:/migrations/product:ro
+      - ../../order-service/migrations:/migrations/order:ro
+      - ../../payment-service/migrations:/migrations/payment:ro
+    configs:
+      - source: db_init
+        target: /docker-entrypoint-initdb.d/init-db.sh
+        mode: 0755
     networks:
       - market_net
 
@@ -129,3 +138,5 @@ volumes:
 configs:
   nginx_config:
     file: ../../api-gateway/nginx.conf
+  db_init:
+    file: ../../scripts/init-databases.sh
